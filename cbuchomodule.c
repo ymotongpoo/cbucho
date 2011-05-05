@@ -16,10 +16,19 @@ cbucho_system(PyObject *self, PyObject *args)
 }
 
 
+static PyObject *
+cbucho_show(PyObject *self)
+{
+	return PyString_FromString("show");
+}
+
+
 static PyMethodDef cbucho_methods[] = {
 	{"system", cbucho_system, METH_VARARGS,
 	 "execute a shell command"},
-	{NULL, NULL, 0, NULL}
+	{"show", cbucho_show, METH_NOARGS,
+	 "show"},
+	{NULL, NULL},
 };
 
 
@@ -27,7 +36,6 @@ static PyMethodDef cbucho_methods[] = {
 void
 initcbucho(void)
 {
-    PyImport_AddModule("xyzzy");
     Py_InitModule("cbucho", cbucho_methods);
 }
 

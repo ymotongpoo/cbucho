@@ -38,10 +38,16 @@ classifiers = [
 
 extra = {}
 
-
+library_dirs = ['/usr/lib']
+include_dirs = ['/usr/include']
+define_macros = []
 
 cbucho_module = Extension('cbucho',
-                          sources = ['cbuchomodule.c'])
+                          sources = ['cbuchomodule.c'],
+                          libraries = ['curl'],
+                          library_dirs = library_dirs,
+                          include_dirs = include_dirs,
+                          define_macros = define_macros)
 
 setup(name = name,
       version = version,

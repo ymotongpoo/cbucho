@@ -9,28 +9,33 @@ import sys
 import os
 from subprocess import Popen, PIPE
 
+
 def read(name):
   return open(os.path.join(os.path.dirname(__file__), name)).read()
 
+
 def curl_option(option):
+  """\
+  get options for libcurl
+  """
   cmd = "curl-config " + option
   p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
   res = p.stdout.read()
-  p.wait()
+  p.wait();
   
-  option = []
+  opts = []
   for opt in res.split():
     opt = opt.strip()
     if opt.startswith("-l") and option == '--libs':
-      option.append(opt[2:])
+      opts.append(opt[2:])
     elif opt.startswith("-L") and option == '--static-libs':
-      option.append(opt[2:])
+      opts.append(opt[2:])
     elif opt.startswith("-I") and option == '--cflags':
-      option.append(opt[2:])
+      opts.append(opt[2:])
     elif option == '--prefix':
-      option.append(opt)
+      opts.append(opt)
 
-  return option
+  return opts
       
 
 if sys.version_info >= (3, 0):
@@ -62,6 +67,7 @@ extra = {}
 libraries = curl_option('--libs')
 library_dirs = [opt + "/lib" for opt in curl_option('--prefix')]
 include_dirs = [opt + "/include" for opt in curl_option('--prefix')]
+print libraries
 define_macros = []
 
 cbucho_module = Extension('cbucho',

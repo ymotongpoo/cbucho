@@ -3,8 +3,17 @@
 Setup
 -----
 
-::
-  $ easy_install bucho
+This module is C porting of `"bucho" <https://bitbucket.org/ae35/bucho>`_, one of the most famous Python modules.
+
+This module requires 2 libraries:
+
+* `libcurl <http://curl.haxx.se/libcurl/>`_
+* `libxml2 <http://xmlsoft.org/index.html>`_
+
+After installing libraries above, just run setup.py::
+
+  $ python setup.py build
+  $ python setup.py install
 
 History
 -------

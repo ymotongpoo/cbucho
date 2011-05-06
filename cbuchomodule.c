@@ -1,34 +1,33 @@
 #include <Python.h>
 
-/* Functions */
-
+/* module Functions */
 static PyObject *
 cbucho_system(PyObject *self, PyObject *args) 
 {
-	const char *command;
-	int sts;
+    const char *command;
+    int sts;
 
-	if (!PyArg_ParseTuple(args, "s", &command))
-		return NULL;
+    if (!PyArg_ParseTuple(args, "s", &command))
+        return NULL;
 
-	sts = system(command);
-	return Py_BuildValue("i", sts);
+    sts = system(command);
+    return Py_BuildValue("i", sts);
 }
 
 
 static PyObject *
 cbucho_show(PyObject *self)
 {
-	return PyString_FromString("show");
+    return PyString_FromString("show\n");
 }
 
 
 static PyMethodDef cbucho_methods[] = {
-	{"system", cbucho_system, METH_VARARGS,
-	 "execute a shell command"},
-	{"show", cbucho_show, METH_NOARGS,
-	 "show"},
-	{NULL, NULL},
+    {"system", cbucho_system, METH_VARARGS,
+     "execute a shell command"},
+    {"show", cbucho_show, METH_NOARGS,
+     "show"},
+    {NULL, NULL},
 };
 
 

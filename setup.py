@@ -7,9 +7,31 @@ except:
   
 import sys
 import os
+from subprocess import Popen, PIPE
 
 def read(name):
   return open(os.path.join(os.path.dirname(__file__), name)).read()
+
+def curl_option(option):
+  cmd = "curl-config " + option
+  p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
+  res = p.stdout.read()
+  p.wait()
+  
+  option = []
+  for opt in res.split():
+    opt = opt.strip()
+    if opt.startswith("-l") and option == '--libs':
+      option.append(opt[2:])
+    elif opt.startswith("-L") and option == '--static-libs':
+      option.append(opt[2:])
+    elif opt.startswith("-I") and option == '--cflags':
+      option.append(opt[2:])
+    elif option == '--prefix':
+      option.append(opt)
+
+  return option
+      
 
 if sys.version_info >= (3, 0):
     if not getattr(setuptools, '_distribute', False):
@@ -18,7 +40,6 @@ if sys.version_info >= (3, 0):
     extra.update(
         use_2to3=True
     )
-
 
 version = '0.0.1'
 name = 'cbucho'
@@ -38,13 +59,14 @@ classifiers = [
 
 extra = {}
 
-library_dirs = ['/usr/lib']
-include_dirs = ['/usr/include']
+libraries = curl_option('--libs')
+library_dirs = [opt + "/lib" for opt in curl_option('--prefix')]
+include_dirs = [opt + "/include" for opt in curl_option('--prefix')]
 define_macros = []
 
 cbucho_module = Extension('cbucho',
                           sources = ['cbuchomodule.c'],
-                          libraries = ['curl'],
+                          libraries = libraries,
                           library_dirs = library_dirs,
                           include_dirs = include_dirs,
                           define_macros = define_macros)

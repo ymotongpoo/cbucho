@@ -81,7 +81,7 @@ include_dirs.extend([opt + "/include/libxml2"
 define_macros = []
 
 cbucho_module = Extension('cbucho',
-                          sources = ["cbuchomodule.c"],
+                          sources = ["cbucho/cbuchomodule.c"],
                           libraries = libraries,
                           library_dirs = library_dirs,
                           include_dirs = include_dirs,
@@ -97,6 +97,7 @@ setup(name = name,
       author = "Yoshifumi YAMAGUCHI (ymotongpoo)",
       author_email = "ymotongpoo@gmail.com",
       url="http://github.com/ymotongpoo/cbucho/",
+      platforms="Linux, Darwin",
       license="PSL",
       ext_modules = [cbucho_module],
       **extra

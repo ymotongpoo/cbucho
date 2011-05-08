@@ -7,6 +7,8 @@
 
 /* utility functions */
 
+#define DEFAULT_BUF 1024
+
 typedef struct
 {
     char* memory;
@@ -15,6 +17,10 @@ typedef struct
 
 /**
    callback function for curl_easy_setopt()
+   
+   return:
+     success: size of size & nmemb
+     failure: -1
  */
 size_t
 write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
@@ -23,7 +29,7 @@ write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
         return 0;
 
     size_t realsize = size * nmemb;
-    Memory* mem = (Memory *)data;
+    Memory* mem = (Memory*)data;
     
     mem->memory = realloc(mem->memory, mem->size + realsize + 1);
     if (!mem->memory)
@@ -38,11 +44,11 @@ write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
             
 /**
    return:
-     success: string content specified with XPath
-     failure: 0
+     success: 0
+     failure: 1
  */
-char*
-find_xpath_text_from_char(Memory* mem, char* xpath)
+int
+print_xpath_text_from_char(Memory* mem, char* xpath)
 {
     xmlDocPtr doc = NULL;
     xmlXPathContextPtr ctx = NULL;
@@ -52,67 +58,61 @@ find_xpath_text_from_char(Memory* mem, char* xpath)
     xmlNodePtr np = NULL;
     int i;
 
-    char* result = NULL;
-    int result_size;
-    char* tmp = NULL;
+    /** for debug **/
+    printf("mem address -> %x\n", mem);
+    printf("memory address -> %x\n", mem->memory);
+    /***************/
 
-    if (!mem->memory) {
+    if ( !(mem->memory) ) {
         printf("memory is NULL\n");
         return 0;
     }
         
-    printf("size : %d\n%s", (int)mem->size, mem->memory);
     //doc = xmlParseMemory(mem->memory, mem->size);
-    printf("%s", "foo0\n");
+    /** for debug **/
     doc = xmlParseMemory("<?xml version=\"1.0\" ?><hoge><piyo>foo</piyo><piyo>bar</piyo></hoge>", 
                          sizeof("<?xml version=\"1.0\" ?><hoge><piyo>foo</piyo><piyo>bar</piyo></hoge>"));
-    if (!doc) return 0;
+    /***************/
+    if (!doc) return 1;
 
-    printf("%s", "foo1\n");
     ctx = xmlXPathNewContext(doc);
-    if (!ctx) return 0;
+    if (!ctx) return 1;
 
-    printf("%s", "foo2\n");
     xpobjp = xmlXPathEvalExpression((xmlChar*)xpath, ctx);
-    if (!xpobjp) return 0;
+    if (!xpobjp) return 1;
 
-    printf("%s", "foo3\n");
     nsp = xpobjp->nodesetval;
-
     node_size = (nsp) ? nsp->nodeNr : 0;
-    printf("%d\n", node_size);
-    /*
     for (i = 0; i < node_size; i++) {
         if (nsp->nodeTab[i]->type == XML_ELEMENT_NODE) {
             np = nsp->nodeTab[i];
-            result_size = sizeof(result) + sizeof((char*)np->content) + 1;
-            tmp = (char*)realloc(result, result_size);
-            if ( !strcat(result, (char*)np->content) ) {
-                return 0;
-            }
+            printf("%s\n", np->children->content);
         }
     }
-    */
-    return result;
+
+    xmlXPathFreeObject(xpobjp);
+    xmlXPathFreeContext(ctx);
+    xmlFreeDoc(doc);
+    xmlCleanupParser();
+
+    return 0;
 }
 
 /**
    return:
-     success: HTTP response data
-     failure: 0
+     success: 0
+     failure: 1
  */
-Memory*
-get_xml_content(char* url)
+int
+get_xml_content(Memory* mem, char* url)
 {
     CURL* curl;
     CURLcode res;
-    Memory tmp = {0};
-    Memory* mem = &tmp;
     
     curl = curl_easy_init();
 
     if (!curl)
-        return 0;
+        return 1;
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
@@ -123,10 +123,14 @@ get_xml_content(char* url)
 
     res = curl_easy_perform(curl);
     if (res)
-        return 0;
+        return 1;
     curl_easy_cleanup(curl);
 
-    return mem;
+    /** for debug **/
+    printf("in get_xml_content\n %s\n", mem->memory);
+    /***************/
+
+    return 0;
 }
 
 
@@ -155,17 +159,22 @@ cbucho_show(PyObject *self)
 static PyObject *
 cbucho_latest_status(PyObject *self)
 {
-    Memory* mem;
-    char* status;
+    Memory* mem = malloc(sizeof(Memory));
+    int res;
 
-    mem = get_xml_content(_bucho_twitter_url);
+    mem->memory = malloc(DEFAULT_BUF);
 
-    if (mem) {
-        printf("%s", "piyo1\n");
-        status = find_xpath_text_from_char(mem, "//piyo");
-        printf("%s", "piyo2\n");
-        printf("%s", status);
-    }
+    res = get_xml_content(mem, _bucho_twitter_url);
+    if (res)
+        printf("[error] in get_xml_content()\n");
+
+    /** for debug **/
+    printf("%s\n", mem->memory);
+    printf("mem address -> %x\n", mem);
+    printf("memory address -> %x\n", mem->memory);
+    /***************/
+
+    res = print_xpath_text_from_char(mem, "//piyo");
 
     Py_RETURN_NONE;
 }

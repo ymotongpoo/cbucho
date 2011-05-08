@@ -1,3 +1,9 @@
+/* -*- coding: utf-8 -*- */
+
+static char* _bucho_twitter_url = 
+    "http://api.twitter.com/1/statuses/user_timeline.xml"
+    "?screen_name=torufurukawa&count=1";
+
 static char* _show_text = "\n"
     "   #############                     ########\n"
     "   #############                  ##############\n"
@@ -135,3 +141,4 @@ static char* _show_text = "\n"
     "                                                     ####\n"
     "                                                     ####\n" 
     "                                                     ####\n";
+

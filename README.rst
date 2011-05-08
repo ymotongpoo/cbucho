@@ -18,7 +18,7 @@ After installing libraries above, just run setup.py::
 History
 -------
 
-0.0.2 (2011-05-05)
+0.0.2 (2011-05-08)
 ~~~~~~~~~~~~~~~~~~
 
 - latest_status() is implemented

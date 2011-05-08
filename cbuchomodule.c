@@ -31,13 +31,12 @@ write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
     size_t realsize = size * nmemb;
     Memory* mem = (Memory*)data;
     
-    mem->memory = realloc(mem->memory, mem->size + realsize + 1);
-    if (!mem->memory)
-        return -1;
-
-    memcpy(&(mem->memory[mem->size]), ptr, realsize);
-    mem->size += realsize;
-    mem->memory[mem->size] = 0;
+    mem->memory = (char*)realloc(mem->memory, mem->size + realsize + 1);
+    if (mem->memory) {
+        memcpy(&(mem->memory[mem->size]), ptr, realsize);
+        mem->size += realsize;
+        mem->memory[mem->size] = 0;
+    }
 
     return realsize;
 }
@@ -59,8 +58,8 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
     int i;
 
     /** for debug **/
-    printf("mem address -> %x\n", mem);
-    printf("memory address -> %x\n", mem->memory);
+    //printf("mem address -> %x\n", mem);
+    //printf("memory address -> %x\n", mem->memory);
     /***************/
 
     if ( !(mem->memory) ) {
@@ -121,15 +120,15 @@ get_xml_content(Memory* mem, char* url)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)mem);
 
+    /** for debug **/
+    //printf("in get_xml_content\n %s\n", mem->memory);
+    /***************/
+
     res = curl_easy_perform(curl);
     if (res)
         return 1;
     curl_easy_cleanup(curl);
-
-    /** for debug **/
-    printf("in get_xml_content\n %s\n", mem->memory);
-    /***************/
-
+    
     return 0;
 }
 
@@ -159,10 +158,11 @@ cbucho_show(PyObject *self)
 static PyObject *
 cbucho_latest_status(PyObject *self)
 {
-    Memory* mem = malloc(sizeof(Memory));
+    Memory* mem = malloc(sizeof(Memory*));
     int res;
 
-    mem->memory = malloc(DEFAULT_BUF);
+    mem->size = 0;
+    mem->memory = NULL;
 
     res = get_xml_content(mem, _bucho_twitter_url);
     if (res)
@@ -175,6 +175,9 @@ cbucho_latest_status(PyObject *self)
     /***************/
 
     res = print_xpath_text_from_char(mem, "//piyo");
+
+    free(mem->memory);
+    free(mem);
 
     Py_RETURN_NONE;
 }

@@ -18,7 +18,14 @@ After installing libraries above, just run setup.py::
 History
 -------
 
+0.0.2 (2011-05-05)
+~~~~~~~~~~~~~~~~~~
+
+- latest_status() is implemented
+
+
 0.0.1 (2011-05-05)
 ~~~~~~~~~~~~~~~~~~
 
 - first release
+- show() is implemented

@@ -151,7 +151,7 @@ cbucho_latest_status(PyObject *self)
     mem->size = 0;
     mem->memory = NULL;
 
-    res = get_xml_content(mem, _bucho_twitter_url);
+    res = get_xml_content(mem, _bucho_latest_twitter_url);
     if (res)
         printf("[error] in get_xml_content() : %d\n", res);
 
@@ -163,6 +163,29 @@ cbucho_latest_status(PyObject *self)
     Py_RETURN_NONE;
 }
 
+
+static PyObject *
+cbucho_all_status(PyObject *self)
+{
+    Memory* mem = malloc(sizeof(Memory*));
+    int res;
+
+    mem->size = 0;
+    mem->memory = NULL;
+
+    res = get_xml_content(mem, _bucho_all_twitter_url);
+    if (res)
+        printf("[error] in get_xml_content() : %d\n", res);
+
+    res = print_xpath_text_from_char(mem, "//text");
+
+    free(mem->memory);
+    free(mem);
+
+    Py_RETURN_NONE;
+}
+
+
 /* methods */
 static PyMethodDef cbucho_methods[] = {
     {"system", cbucho_system, METH_VARARGS,
@@ -170,7 +193,9 @@ static PyMethodDef cbucho_methods[] = {
     {"show", cbucho_show, METH_NOARGS,
      "show"},
     {"latest_status", cbucho_latest_status, METH_NOARGS,
-     "print latest bucho's status"},
+     "print bucho's latest status"},
+	{"all_status", cbucho_all_status, METH_NOARGS,
+     "print bucho's last 20 statuses"},
     {NULL, NULL},
 };
 

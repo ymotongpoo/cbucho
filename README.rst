@@ -21,7 +21,7 @@ History
 0.0.2 (2011-05-08)
 ~~~~~~~~~~~~~~~~~~
 
-- latest_status() is implemented
+- latest_status(), all_status() is implemented
 
 
 0.0.1 (2011-05-05)

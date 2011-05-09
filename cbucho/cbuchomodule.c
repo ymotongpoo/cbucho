@@ -47,7 +47,7 @@ write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
      failure: 1
  */
 int
-print_xpath_text_from_char(Memory* mem, char* xpath)
+expr_xpath_text_from_string(Memory* mem, char* xpath, char* ret)
 {
     xmlDocPtr doc = NULL;
     xmlXPathContextPtr ctx = NULL;
@@ -76,7 +76,13 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
     for (i = 0; i < node_size; i++) {
         if (nsp->nodeTab[i]->type == XML_ELEMENT_NODE) {
             np = nsp->nodeTab[i];
-            printf("%s\n", np->children->content);
+
+            printf("hoge00 : %s\n", np->children->content);
+            strcat(ret, (char*)np->children->content);
+            strcat(ret, "\n");
+            printf("hoge01\n");
+
+            printf("%s", ret);
         }
     }
 
@@ -93,7 +99,7 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
      success: 0
      failure: 1
  */
-int
+int 
 get_xml_content(Memory* mem, char* url)
 {
     CURL* curl;
@@ -148,6 +154,8 @@ cbucho_latest_status(PyObject *self)
     Memory* mem = malloc(sizeof(Memory*));
     int res;
 
+    char* ret = "\0";
+
     mem->size = 0;
     mem->memory = NULL;
 
@@ -155,12 +163,12 @@ cbucho_latest_status(PyObject *self)
     if (res)
         printf("[error] in get_xml_content() : %d\n", res);
 
-    res = print_xpath_text_from_char(mem, "//text");
+    res = expr_xpath_text_from_string(mem, "//text", ret);
 
     free(mem->memory);
     free(mem);
 
-    Py_RETURN_NONE;
+    return PyString_FromString(ret);
 }
 
 
@@ -170,6 +178,8 @@ cbucho_all_status(PyObject *self)
     Memory* mem = malloc(sizeof(Memory*));
     int res;
 
+    char* ret = "\0";
+
     mem->size = 0;
     mem->memory = NULL;
 
@@ -177,12 +187,12 @@ cbucho_all_status(PyObject *self)
     if (res)
         printf("[error] in get_xml_content() : %d\n", res);
 
-    res = print_xpath_text_from_char(mem, "//text");
+    res = expr_xpath_text_from_string(mem, "//text", ret);
 
     free(mem->memory);
     free(mem);
 
-    Py_RETURN_NONE;
+    return PyString_FromString(ret);
 }
 
 
@@ -194,7 +204,7 @@ static PyMethodDef cbucho_methods[] = {
      "show"},
     {"latest_status", cbucho_latest_status, METH_NOARGS,
      "print bucho's latest status"},
-	{"all_status", cbucho_all_status, METH_NOARGS,
+    {"all_status", cbucho_all_status, METH_NOARGS,
      "print bucho's last 20 statuses"},
     {NULL, NULL},
 };

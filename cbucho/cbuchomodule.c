@@ -56,6 +56,9 @@ expr_xpath_text_from_string(Memory* mem, char* xpath, char* ret)
     int node_size;
     xmlNodePtr np = NULL;
     int i;
+    unsigned int ret_size = strlen(ret);
+    unsigned int content_size = 0;
+
 
     if ( !(mem->memory) ) {
         printf("memory is NULL\n");
@@ -73,16 +76,20 @@ expr_xpath_text_from_string(Memory* mem, char* xpath, char* ret)
 
     nsp = xpobjp->nodesetval;
     node_size = (nsp) ? nsp->nodeNr : 0;
-    for (i = 0; i < node_size; i++) {
+    for (i = 0; i < node_size; ++i) {
         if (nsp->nodeTab[i]->type == XML_ELEMENT_NODE) {
             np = nsp->nodeTab[i];
 
-            printf("hoge00 : %s\n", np->children->content);
-            strcat(ret, (char*)np->children->content);
+            content_size = strlen(np->children->content);
+            ret = (char*)realloc(ret, ret_size + content_size + 2);
+            memcpy(&(ret[ret_size]), (char*)np->children->content, content_size);
             strcat(ret, "\n");
-            printf("hoge01\n");
-
-            printf("%s", ret);
+            
+            ret_size += content_size + 2;
+            
+            //printf("[debug] %d --> ret_size : %d, content_size : %d, size : %d\n", 
+            //       i, ret_size, content_size, strlen(ret));
+            //printf("[debug] %s", ret);
         }
     }
 
@@ -151,10 +158,11 @@ cbucho_show(PyObject *self)
 static PyObject *
 cbucho_latest_status(PyObject *self)
 {
-    Memory* mem = malloc(sizeof(Memory*));
+    Memory* mem = (Memory*)malloc(sizeof(Memory));
     int res;
 
-    char* ret = "\0";
+    char* ret = (char*)malloc(sizeof(char));
+    //printf("[debug] %x --> %s (size : %d)\n", ret, ret, strlen(ret));
 
     mem->size = 0;
     mem->memory = NULL;
@@ -164,9 +172,11 @@ cbucho_latest_status(PyObject *self)
         printf("[error] in get_xml_content() : %d\n", res);
 
     res = expr_xpath_text_from_string(mem, "//text", ret);
-
+    
     free(mem->memory);
     free(mem);
+
+    printf("[debug] %x --> %s (size : %d)\n", ret, ret, (int)strlen(ret));
 
     return PyString_FromString(ret);
 }
@@ -175,10 +185,10 @@ cbucho_latest_status(PyObject *self)
 static PyObject *
 cbucho_all_status(PyObject *self)
 {
-    Memory* mem = malloc(sizeof(Memory*));
+    Memory* mem = (Memory*)malloc(sizeof(Memory));
     int res;
 
-    char* ret = "\0";
+    char* ret = (char*)malloc(sizeof(char));
 
     mem->size = 0;
     mem->memory = NULL;
@@ -200,11 +210,11 @@ cbucho_all_status(PyObject *self)
 static PyMethodDef cbucho_methods[] = {
     {"system", cbucho_system, METH_VARARGS,
      "execute a shell command"},
-    {"show", cbucho_show, METH_NOARGS,
+    {"show", cbucho_show, METH_VARARGS,
      "show"},
-    {"latest_status", cbucho_latest_status, METH_NOARGS,
+    {"latest_status", cbucho_latest_status, METH_VARARGS,
      "print bucho's latest status"},
-    {"all_status", cbucho_all_status, METH_NOARGS,
+    {"all_status", cbucho_all_status, METH_VARARGS,
      "print bucho's last 20 statuses"},
     {NULL, NULL},
 };

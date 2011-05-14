@@ -1,15 +1,48 @@
 /* -*- coding: utf-8 -*- */
 
-static char* _bucho_latest_twitter_url = 
-    "http://api.twitter.com/1/statuses/user_timeline.xml"
-    "?screen_name=torufurukawa&count=1";
+/* macro */
 
-static char* _bucho_all_twitter_url = 
+#define LIMIT_MAX 1024 * 1024 * 1024
+#define DEFAULT_SIZE 1024
+
+/* types */
+
+typedef struct
+{
+    char* memory;
+    size_t size;
+    size_t len;
+    size_t limit;
+} Memory;
+
+
+/* functions */
+
+Memory*
+malloc_memory(void);
+
+void
+free_memory(Memory* mem);
+
+Memory*
+new_memory(size_t size, size_t limit);
+
+int
+copy_to_memory(Memory* mem, const char* c, size_t l);
+
+
+/* constant values */
+
+static const char* _bucho_latest_twitter_url = 
+    "http://api.twitter.com/1/statuses/user_timeline.xml"
+    "?screen_name=torufurukawa&count=1&include_rts=1";
+
+static const char* _bucho_all_twitter_url = 
     "http://api.twitter.com/1/statuses/user_timeline.xml"
     "?screen_name=torufurukawa&count=200";
 
 
-static char* _show_text = "\n"
+static const char* _show_text = "\n"
     "   #############                     ########\n"
     "   #############                  ##############\n"
     "   #############                ##################\n"

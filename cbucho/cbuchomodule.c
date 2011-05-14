@@ -5,15 +5,103 @@
 #include <libxml/xpath.h>
 #include "cbuchomodule.h"
 
+#define DEBUG(...) \
+    do {                   \
+        printf("DEBUG: ");   \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while(0)
+#define DUMP(...)                               \
+    do {                                                                \
+        printf("-------------------------------------------------------\n"); \
+        printf(__VA_ARGS__);                                            \
+        printf("\n");                                                   \
+        printf("-------------------------------------------------------\n"); \
+    
+
 /* utility functions */
-
-#define DEFAULT_BUF 1024
-
-typedef struct
+Memory*
+malloc_memory(void) 
 {
-    char* memory;
-    size_t size;
-} Memory;
+    Memory* mem;
+    mem = (Memory*)PyMem_Malloc(sizeof(Memory));
+    memset(mem, 0, sizeof(Memory));
+    //DEBUG("malloc_memory %p", mem);
+    return mem;
+}
+
+
+void
+free_memory(Memory* mem) 
+{
+    //DEBUG("free_memory %p", mem);
+    PyMem_Free(mem);
+}
+
+
+Memory*
+new_memory(size_t size, size_t limit)
+{
+    Memory* mem;
+
+    mem = malloc_memory();
+    if (!mem) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    mem->memory = (char*)PyMem_Malloc(sizeof(char) * size);
+    if (!mem->memory) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+    //DEBUG("new_memory %p (memory %p)", mem, mem->memory);
+
+    mem->size = size;
+    mem->limit = limit;
+
+    return mem;
+}
+
+
+int
+copy_to_memory(Memory* mem, const char* c, size_t l) 
+{
+    char* new_memory;
+    size_t new_len;
+
+    if (mem == NULL) {
+        PyErr_NoMemory();
+        return 1;
+    }
+
+    new_len = (int)(mem->len + l);
+    if (new_len >= mem->size) {
+        mem->size *= 2;
+        if (new_len >= mem->size) {
+            mem->size = new_len + 1;
+        }
+        if (mem->size > mem->limit) {
+            mem->size = mem->limit + l;
+        }
+        new_memory = (char*)PyMem_Realloc(mem->memory, mem->size);
+        if (new_memory == NULL) {
+            PyErr_SetString(PyExc_MemoryError, "out of memory");
+            PyMem_Free(mem->memory);
+            mem->memory = NULL;
+            mem->size = mem->len = 0;
+            return 1;
+        }
+
+        mem->memory = new_memory;
+    }
+
+    memcpy(mem->memory + mem->len, c, l);
+    
+    mem->len = new_len;
+    return 0;
+}
+
 
 /**
    callback function for curl_easy_setopt()
@@ -25,19 +113,12 @@ typedef struct
 size_t
 write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
 {
-    if (size * nmemb == 0)
+    if (size * nmemb == 0) {
         return 0;
-
+    }
     size_t realsize = size * nmemb;
     Memory* mem = (Memory*)data;
-    
-    mem->memory = (char*)realloc(mem->memory, mem->size + realsize + 1);
-    if (mem->memory) {
-        memcpy(&(mem->memory[mem->size]), ptr, realsize);
-        mem->size += realsize;
-        mem->memory[mem->size] = 0;
-    }
-
+    copy_to_memory(mem, ptr, realsize);
     return realsize;
 }
             
@@ -47,7 +128,7 @@ write_memory_callback(void* ptr, size_t size, size_t nmemb, void* data)
      failure: 1
  */
 int
-print_xpath_text_from_char(Memory* mem, char* xpath)
+expr_xpath_text_from_string(Memory* mem, char* xpath, Memory* ret)
 {
     xmlDocPtr doc = NULL;
     xmlXPathContextPtr ctx = NULL;
@@ -56,12 +137,15 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
     int node_size;
     xmlNodePtr np = NULL;
     int i;
+    size_t ret_size = strlen(ret);
+    size_t content_size = 0;
 
-    if ( !(mem->memory) ) {
-        printf("memory is NULL\n");
-        return 0;
+    if (!mem) {
+        PyErr_SetString(PyExc_MemoryError, "out of memory");
+        return 1;
     }
         
+    //DEBUG("expr_xpath_text_from_string: memory\n %s", mem->memory);
     doc = xmlParseMemory(mem->memory, mem->size);
     if (!doc) return 1;
 
@@ -73,10 +157,13 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
 
     nsp = xpobjp->nodesetval;
     node_size = (nsp) ? nsp->nodeNr : 0;
-    for (i = 0; i < node_size; i++) {
+    for (i = 0; i < node_size; ++i) {
         if (nsp->nodeTab[i]->type == XML_ELEMENT_NODE) {
             np = nsp->nodeTab[i];
-            printf("%s\n", np->children->content);
+
+            content_size = strlen(np->children->content);
+            copy_to_memory(ret, (char*)(np->children->content), content_size);
+            copy_to_memory(ret, "\n", 1);
         }
     }
 
@@ -93,16 +180,17 @@ print_xpath_text_from_char(Memory* mem, char* xpath)
      success: 0
      failure: 1
  */
-int
+int 
 get_xml_content(Memory* mem, char* url)
 {
     CURL* curl;
-    CURLcode res;
+    CURLcode result = 0;
     
     curl = curl_easy_init();
 
-    if (!curl)
+    if (!curl) {
         return 1;
+    }
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
@@ -111,12 +199,11 @@ get_xml_content(Memory* mem, char* url)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)mem);
 
-    res = curl_easy_perform(curl);
-    if (res)
-        return 1;
+    result = curl_easy_perform(curl);
+    //DEBUG("get_xml_content: memory\n %s", mem->memory);
     curl_easy_cleanup(curl);
     
-    return 0;
+    return result;
 }
 
 
@@ -127,8 +214,9 @@ cbucho_system(PyObject *self, PyObject *args)
     const char *command;
     int sts;
 
-    if (!PyArg_ParseTuple(args, "s", &command))
+    if (!PyArg_ParseTuple(args, "s", &command)) {
         return NULL;
+    }
 
     sts = system(command);
     return Py_BuildValue("i", sts);
@@ -145,44 +233,52 @@ cbucho_show(PyObject *self)
 static PyObject *
 cbucho_latest_status(PyObject *self)
 {
-    Memory* mem = malloc(sizeof(Memory*));
-    int res;
+    Memory* mem = new_memory(DEFAULT_SIZE, LIMIT_MAX);
+    Memory* ret = new_memory(DEFAULT_SIZE, LIMIT_MAX);
+    int result;
 
-    mem->size = 0;
-    mem->memory = NULL;
+    result = get_xml_content(mem, _bucho_latest_twitter_url);
+    copy_to_memory(mem, "\0", 1);
+    if (result) {
+        PyErr_SetString("[error] in get_xml_content() : %d\n", result);
+    }
 
-    res = get_xml_content(mem, _bucho_latest_twitter_url);
-    if (res)
-        printf("[error] in get_xml_content() : %d\n", res);
-
-    res = print_xpath_text_from_char(mem, "//text");
+    result = expr_xpath_text_from_string(mem, "//status/text", ret);
+    if (result) {
+        PyErr_SetString("[error] in expr_xpath_text_from_string() : %d\n", result);
+    }
 
     free(mem->memory);
+    mem->memory = NULL;
     free(mem);
 
-    Py_RETURN_NONE;
+    return PyString_FromString(ret->memory);
 }
 
 
 static PyObject *
 cbucho_all_status(PyObject *self)
 {
-    Memory* mem = malloc(sizeof(Memory*));
-    int res;
+    Memory* mem = new_memory(DEFAULT_SIZE, LIMIT_MAX);
+    Memory* ret = new_memory(DEFAULT_SIZE, LIMIT_MAX);
+    int result;
 
-    mem->size = 0;
-    mem->memory = NULL;
+    result = get_xml_content(mem, _bucho_all_twitter_url);
+    copy_to_memory(mem, "\0", 1);
+    if (result) {
+        PyErr_SetString("[error] in get_xml_content() : %d\n", result);
+    }
 
-    res = get_xml_content(mem, _bucho_all_twitter_url);
-    if (res)
-        printf("[error] in get_xml_content() : %d\n", res);
-
-    res = print_xpath_text_from_char(mem, "//text");
+    result = expr_xpath_text_from_string(mem, "//status/text", ret);
+    if (result) {
+        PyErr_SetString("[error] in get_xml_content() : %d\n", result);
+    }
 
     free(mem->memory);
+    mem->memory = NULL;
     free(mem);
 
-    Py_RETURN_NONE;
+    return PyString_FromString(ret->memory);
 }
 
 
@@ -190,11 +286,11 @@ cbucho_all_status(PyObject *self)
 static PyMethodDef cbucho_methods[] = {
     {"system", cbucho_system, METH_VARARGS,
      "execute a shell command"},
-    {"show", cbucho_show, METH_NOARGS,
+    {"show", cbucho_show, METH_VARARGS,
      "show"},
-    {"latest_status", cbucho_latest_status, METH_NOARGS,
+    {"latest_status", cbucho_latest_status, METH_VARARGS,
      "print bucho's latest status"},
-	{"all_status", cbucho_all_status, METH_NOARGS,
+    {"all_status", cbucho_all_status, METH_VARARGS,
      "print bucho's last 20 statuses"},
     {NULL, NULL},
 };

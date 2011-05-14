@@ -18,11 +18,15 @@ After installing libraries above, just run setup.py::
 History
 -------
 
+0.0.3 (2011-05-15)
+~~~~~~~~~~~~~~~~~~
+
+- fixed `latest_status` bug to use ``include_rts=1`` in API URL and fixed memory management
+
 0.0.2 (2011-05-08)
 ~~~~~~~~~~~~~~~~~~
 
 - latest_status(), all_status() is implemented
-
 
 0.0.1 (2011-05-05)
 ~~~~~~~~~~~~~~~~~~

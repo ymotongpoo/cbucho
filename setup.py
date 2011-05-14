@@ -48,7 +48,7 @@ if sys.version_info >= (3, 0):
     )
 
 ##### properties
-version = '0.0.2'
+version = '0.0.3'
 name = 'cbucho'
 short_description = '`cbucho` is a package for C/API exercises.'
 

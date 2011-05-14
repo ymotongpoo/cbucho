@@ -5,6 +5,20 @@
 #include <libxml/xpath.h>
 #include "cbuchomodule.h"
 
+#define DEBUG(...) \
+    do {                   \
+        printf("DEBUG: ");   \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while(0)
+#define DUMP(...)                               \
+    do {                                                                \
+        printf("-------------------------------------------------------\n"); \
+        printf(__VA_ARGS__);                                            \
+        printf("\n");                                                   \
+        printf("-------------------------------------------------------\n"); \
+    
+
 /* utility functions */
 Memory*
 malloc_memory(void) 
@@ -12,6 +26,7 @@ malloc_memory(void)
     Memory* mem;
     mem = (Memory*)PyMem_Malloc(sizeof(Memory));
     memset(mem, 0, sizeof(Memory));
+    //DEBUG("malloc_memory %p", mem);
     return mem;
 }
 
@@ -19,11 +34,7 @@ malloc_memory(void)
 void
 free_memory(Memory* mem) 
 {
-    if (mem->memory) {
-        PyMem_Free(mem->memory);
-        mem->memory = NULL;
-        mem->len = mem->size = 0;
-    }
+    //DEBUG("free_memory %p", mem);
     PyMem_Free(mem);
 }
 
@@ -44,6 +55,7 @@ new_memory(size_t size, size_t limit)
         PyErr_NoMemory();
         return NULL;
     }
+    //DEBUG("new_memory %p (memory %p)", mem, mem->memory);
 
     mem->size = size;
     mem->limit = limit;
@@ -58,7 +70,7 @@ copy_to_memory(Memory* mem, const char* c, size_t l)
     char* new_memory;
     size_t new_len;
 
-    if (!mem) {
+    if (mem == NULL) {
         PyErr_NoMemory();
         return 1;
     }
@@ -73,9 +85,9 @@ copy_to_memory(Memory* mem, const char* c, size_t l)
             mem->size = mem->limit + l;
         }
         new_memory = (char*)PyMem_Realloc(mem->memory, mem->size);
-        if (!new_memory) {
+        if (new_memory == NULL) {
             PyErr_SetString(PyExc_MemoryError, "out of memory");
-            free(mem->memory);
+            PyMem_Free(mem->memory);
             mem->memory = NULL;
             mem->size = mem->len = 0;
             return 1;
@@ -85,6 +97,7 @@ copy_to_memory(Memory* mem, const char* c, size_t l)
     }
 
     memcpy(mem->memory + mem->len, c, l);
+    
     mem->len = new_len;
     return 0;
 }
@@ -132,6 +145,7 @@ expr_xpath_text_from_string(Memory* mem, char* xpath, Memory* ret)
         return 1;
     }
         
+    //DEBUG("expr_xpath_text_from_string: memory\n %s", mem->memory);
     doc = xmlParseMemory(mem->memory, mem->size);
     if (!doc) return 1;
 
@@ -148,7 +162,7 @@ expr_xpath_text_from_string(Memory* mem, char* xpath, Memory* ret)
             np = nsp->nodeTab[i];
 
             content_size = strlen(np->children->content);
-            copy_to_memory(ret, (char*)np->children->content, content_size);
+            copy_to_memory(ret, (char*)(np->children->content), content_size);
             copy_to_memory(ret, "\n", 1);
         }
     }
@@ -170,7 +184,7 @@ int
 get_xml_content(Memory* mem, char* url)
 {
     CURL* curl;
-    CURLcode res = 0;
+    CURLcode result = 0;
     
     curl = curl_easy_init();
 
@@ -185,10 +199,11 @@ get_xml_content(Memory* mem, char* url)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)mem);
 
-    res = curl_easy_perform(curl);
+    result = curl_easy_perform(curl);
+    //DEBUG("get_xml_content: memory\n %s", mem->memory);
     curl_easy_cleanup(curl);
     
-    return res;
+    return result;
 }
 
 
@@ -223,16 +238,19 @@ cbucho_latest_status(PyObject *self)
     int result;
 
     result = get_xml_content(mem, _bucho_latest_twitter_url);
+    copy_to_memory(mem, "\0", 1);
     if (result) {
         PyErr_SetString("[error] in get_xml_content() : %d\n", result);
     }
 
-    result = expr_xpath_text_from_string(mem, "//text", ret);
+    result = expr_xpath_text_from_string(mem, "//status/text", ret);
     if (result) {
         PyErr_SetString("[error] in expr_xpath_text_from_string() : %d\n", result);
     }
 
-    free_memory(mem);
+    free(mem->memory);
+    mem->memory = NULL;
+    free(mem);
 
     return PyString_FromString(ret->memory);
 }
@@ -241,26 +259,26 @@ cbucho_latest_status(PyObject *self)
 static PyObject *
 cbucho_all_status(PyObject *self)
 {
-    Memory* mem = (Memory*)malloc(sizeof(Memory));
+    Memory* mem = new_memory(DEFAULT_SIZE, LIMIT_MAX);
+    Memory* ret = new_memory(DEFAULT_SIZE, LIMIT_MAX);
     int result;
-
-    char* ret = (char*)malloc(sizeof(char));
-
-    mem->size = 0;
-    mem->memory = NULL;
 
     result = get_xml_content(mem, _bucho_all_twitter_url);
     copy_to_memory(mem, "\0", 1);
+    if (result) {
+        PyErr_SetString("[error] in get_xml_content() : %d\n", result);
+    }
 
-    if (result)
-        printf("[error] in get_xml_content() : %d\n", result);
-
-    result = expr_xpath_text_from_string(mem, "//text", ret);
+    result = expr_xpath_text_from_string(mem, "//status/text", ret);
+    if (result) {
+        PyErr_SetString("[error] in get_xml_content() : %d\n", result);
+    }
 
     free(mem->memory);
+    mem->memory = NULL;
     free(mem);
 
-    return PyString_FromString(ret);
+    return PyString_FromString(ret->memory);
 }
 
 

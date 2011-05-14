@@ -35,7 +35,7 @@ copy_to_memory(Memory* mem, const char* c, size_t l);
 
 static const char* _bucho_latest_twitter_url = 
     "http://api.twitter.com/1/statuses/user_timeline.xml"
-    "?screen_name=torufurukawa&count=1";
+    "?screen_name=torufurukawa&count=1&include_rts=1";
 
 static const char* _bucho_all_twitter_url = 
     "http://api.twitter.com/1/statuses/user_timeline.xml"

@@ -84,7 +84,7 @@ copy_to_memory(Memory* mem, const char* c, size_t l)
         if (mem->size > mem->limit) {
             mem->size = mem->limit + l;
         }
-        new_memory = (char*)PyMem_Realloc(mem->memory, mem->size);
+        new_memory = (char*)PyMem_Realloc(mem->memory, sizeof(char) * mem->size);
         if (new_memory == NULL) {
             PyErr_SetString(PyExc_MemoryError, "out of memory");
             PyMem_Free(mem->memory);
